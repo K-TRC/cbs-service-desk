@@ -13,6 +13,14 @@
     
     <!-- Main Style Tokens and Glassmorphism Layouts (inlined for Apps Script) -->
     <style><?!= include('app-css'); ?></style>
+    <script>
+    // GAS IFRAME mode submits forms to a blank page before JS handlers run.
+    document.addEventListener('submit', function (e) {
+        if (e.target && e.target.tagName === 'FORM') {
+            e.preventDefault();
+        }
+    }, true);
+    </script>
 </head>
 <body>
 
@@ -97,7 +105,7 @@
                         <p class="login-subtitle">Please sign in with your corporate email (เข้าสู่ระบบด้วยอีเมล)</p>
                     </div>
                     
-                    <form class="login-form" id="login-form-element">
+                    <form class="login-form" id="login-form-element" action="javascript:void(0)" method="post" novalidate>
                         <div class="form-group">
                             <label class="form-label" for="login-email">Corporate Email (อีเมลหน่วยงาน)</label>
                             <input class="input-control" type="email" id="login-email" required placeholder="example@central.co.th" autocomplete="email">
@@ -335,7 +343,7 @@
         <!-- =================== SCREEN 4: NEW MAINTENANCE TICKET FORM =================== -->
         <main class="view-section" id="new_ticket-view">
             <div class="form-view">
-                <form class="form-card" id="maintenance-form">
+                <form class="form-card" id="maintenance-form" action="javascript:void(0)" method="post" novalidate>
                     
                     <!-- Header -->
                     <div class="form-header-row">
@@ -489,7 +497,7 @@
                     <button class="btn btn-icon-only" onclick="closeAdminLoginModal()" style="border: none; background: transparent; font-size: 20px; font-weight: 700; width: auto; height: auto;" title="Close">✕</button>
                 </div>
                 <div class="modal-body">
-                    <form id="admin-login-form" style="display: flex; flex-direction: column; gap: 16px;">
+                    <form id="admin-login-form" action="javascript:void(0)" method="post" style="display: flex; flex-direction: column; gap: 16px;" novalidate>
                         <div class="form-group">
                             <label class="form-label" for="admin-username">Username (ชื่อผู้ใช้)</label>
                             <input class="input-control" type="text" id="admin-username" required>
@@ -815,7 +823,7 @@
                 
                 <!-- Body -->
                 <div class="modal-body">
-                    <form id="admin-edit-form" style="display: flex; flex-direction: column; gap: 16px;">
+                    <form id="admin-edit-form" action="javascript:void(0)" method="post" style="display: flex; flex-direction: column; gap: 16px;" novalidate>
                         <!-- Reporter Name -->
                         <div class="form-group">
                             <label class="form-label" for="edit-reporter-name">Reporter Name (ชื่อผู้แจ้ง)*</label>

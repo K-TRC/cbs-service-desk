@@ -14,9 +14,23 @@ const GasApi = (function () {
         reject(new Error('Not running in Google Apps Script'));
         return;
       }
+      var settled = false;
+      var timer = setTimeout(function () {
+        if (settled) return;
+        settled = true;
+        reject(new Error('Server request timed out. Please try again.'));
+      }, 30000);
       google.script.run
-        .withSuccessHandler(resolve)
+        .withSuccessHandler(function (result) {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          resolve(result);
+        })
         .withFailureHandler(function (err) {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
           reject(err instanceof Error ? err : new Error(String(err && err.message ? err.message : err)));
         })
         [fnName].apply(google.script.run, args);

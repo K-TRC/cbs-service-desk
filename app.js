@@ -1470,12 +1470,7 @@ async function handleAdminLogin() {
     }
 }
 // --- APP INITIALIZER ---
-document.addEventListener('DOMContentLoaded', async () => {
-    // 1. Initialise State & Database
-    await loadDatabase();
-    
-    // 2. Set up Event Listeners
-    
+function setupEventListeners() {
     // Login
     document.getElementById('login-form-element').addEventListener('submit', handleLogin);
     document.getElementById('header-logout').addEventListener('click', handleLogout);
@@ -1605,8 +1600,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         state.chartBUFilter = e.target.value;
         renderAdminCharts();
     });
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    // Attach listeners first — GAS IFRAME can submit forms before async init finishes.
+    setupEventListeners();
+
+    try {
+        await loadDatabase();
+    } catch (err) {
+        console.error('Failed to initialise database:', err);
+    }
     
-    // 3. Kickoff first view depending on session
+    // Kickoff first view depending on session
     if (state.currentUser) {
         switchView('service');
     } else {

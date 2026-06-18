@@ -4,6 +4,7 @@ CBS Service Desk/**
 node_modules/**
 .git/**
 scripts/**
+docs/**
 *.md
 package.json
 package-lock.json
