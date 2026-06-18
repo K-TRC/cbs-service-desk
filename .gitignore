@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+.tools/
 
 # clasp local auth (do not commit OAuth token)
 .clasprc.json
