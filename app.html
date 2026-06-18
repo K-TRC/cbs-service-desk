@@ -52,6 +52,7 @@ const AppStorage = (function () {
 // --- APPLICATION STATE ---
 const state = {
     currentUser: null,
+    isAdmin: false,
     tickets: [],
     stores: [],
     currentView: 'login',
@@ -196,14 +197,22 @@ function updateHeaderUI() {
 }
 
 // --- DATABASE OPERATIONS ---
-async function loadDatabase() {
-    // 1. Load User session (client-side only)
+function loadSessionAndTheme() {
     const savedUser = AppStorage.getItem('cbs_service_hub_user');
     if (savedUser) {
-        state.currentUser = JSON.parse(savedUser);
+        try {
+            state.currentUser = JSON.parse(savedUser);
+        } catch (err) {
+            console.warn('Invalid saved user session:', err);
+        }
     }
 
-    // 2. Load Tickets — Google Drive via Apps Script, or localStorage fallback
+    const savedTheme = AppStorage.getItem('cbs_theme') || 'light';
+    setTheme(savedTheme);
+    loadStoresFromGlobal();
+}
+
+async function loadTicketsAsync() {
     try {
         if (typeof GasApi !== 'undefined' && GasApi.isGasRuntime()) {
             state.tickets = await GasApi.getTickets();
@@ -221,12 +230,17 @@ async function loadDatabase() {
         state.tickets = [...MOCK_TICKETS];
     }
 
-    // 3. Load Theme
-    const savedTheme = AppStorage.getItem('cbs_theme') || 'light';
-    setTheme(savedTheme);
+    if (state.currentView === 'dashboard') {
+        renderDashboard();
+    } else if (state.currentView === 'admin') {
+        renderAdminDashboard();
+        renderAdminCharts();
+    }
+}
 
-    // 4. Load store master data from stores.js (may load after bootstrap)
-    loadStoresFromGlobal();
+async function loadDatabase() {
+    loadSessionAndTheme();
+    await loadTicketsAsync();
 }
 
 function loadStoresFromGlobal() {
@@ -306,6 +320,7 @@ function handleLogin(e) {
 
 function handleLogout() {
     state.currentUser = null;
+    state.isAdmin = false;
     AppStorage.removeItem('cbs_service_hub_user');
     switchView('login');
     document.getElementById('login-email').value = '';
@@ -718,7 +733,7 @@ function removeTempImage(index) {
 
 // --- FORM SUBMITTER ---
 async function handleFormSubmit(e) {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     
     // 1. Validation
     const bu = document.getElementById('form-bu').value;
@@ -1524,150 +1539,188 @@ async function handleAdminLogin() {
         alert('Invalid Username or Password (ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง)');
     }
 }
+function submitMaintenanceForm(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    return handleFormSubmit(e || { preventDefault: function () {} });
+}
+
 // --- APP INITIALIZER ---
-function setupEventListeners() {
-    try {
-    const loginForm = document.getElementById('login-form-element');
-    const loginButton = document.getElementById('login-submit-btn');
-
-    if (loginForm) {
-        loginForm.addEventListener('submit', handleLogin);
+function bindSafe(id, event, handler) {
+    const el = document.getElementById(id);
+    if (!el) {
+        console.warn('[CBS] Missing element #' + id);
+        return false;
     }
-    if (loginButton) {
-        loginButton.addEventListener('click', handleLogin);
-    }
+    el.addEventListener(event, handler);
+    return true;
+}
 
-    const headerLogout = document.getElementById('header-logout');
-    if (headerLogout) headerLogout.addEventListener('click', handleLogout);
-    
-    // Route navigation
-    document.getElementById('header-back').addEventListener('click', () => {
-        if (state.currentView === 'admin') {
-            switchView('service');
-        } else if (state.currentView === 'new_ticket') {
+function publishGlobals() {
+    const api = {
+        handleLogin: handleLogin,
+        handleLogout: handleLogout,
+        switchView: switchView,
+        openAdminLoginModal: openAdminLoginModal,
+        closeAdminLoginModal: closeAdminLoginModal,
+        handleAdminLogin: handleAdminLogin,
+        closeTicketDetail: closeTicketDetail,
+        showTicketDetail: showTicketDetail,
+        openAdminEditModal: openAdminEditModal,
+        closeAdminEditModal: closeAdminEditModal,
+        removeTempImage: removeTempImage,
+        handleFormSubmit: handleFormSubmit,
+        submitMaintenanceForm: submitMaintenanceForm,
+        exportToExcel: exportToExcel,
+        exportBackupData: exportBackupData,
+        toggleTheme: toggleTheme
+    };
+    Object.keys(api).forEach(function (key) {
+        window[key] = api[key];
+    });
+}
+
+function setupDelegatedNavigation() {
+    const root = document.getElementById('app-container-wrapper');
+    if (!root) return;
+
+    root.addEventListener('click', function (e) {
+        const target = e.target.closest(
+            '#service-ma-card, #service-admin-card, #nav-home, #nav-maintenance, #nav-admin, ' +
+            '#btn-dashboard-new-tkt, #btn-form-cancel, #btn-admin-to-dashboard, #theme-toggle, ' +
+            '#header-back, #header-logout, #sidebar-toggle, #btn-dashboard-backup, #btn-dashboard-restore, ' +
+            '#btn-admin-export, #btn-admin-save-edit, #btn-form-submit'
+        );
+        if (!target) return;
+
+        if (target.id === 'service-ma-card') {
+            e.preventDefault();
             switchView('dashboard');
-        } else if (state.currentView === 'dashboard') {
+        } else if (target.id === 'service-admin-card' || target.id === 'nav-admin') {
+            e.preventDefault();
+            openAdminLoginModal(e);
+        } else if (target.id === 'nav-home') {
+            e.preventDefault();
             switchView('service');
-        } else {
+        } else if (target.id === 'nav-maintenance') {
+            e.preventDefault();
+            switchView('dashboard');
+        } else if (target.id === 'btn-dashboard-new-tkt') {
+            e.preventDefault();
+            switchView('new_ticket');
+        } else if (target.id === 'btn-form-cancel') {
+            e.preventDefault();
+            switchView('dashboard');
+        } else if (target.id === 'btn-admin-to-dashboard') {
+            e.preventDefault();
             switchView('service');
+        } else if (target.id === 'theme-toggle') {
+            e.preventDefault();
+            toggleTheme();
+        } else if (target.id === 'header-logout') {
+            e.preventDefault();
+            handleLogout();
+        } else if (target.id === 'header-back') {
+            e.preventDefault();
+            if (state.currentView === 'admin') switchView('service');
+            else if (state.currentView === 'new_ticket') switchView('dashboard');
+            else switchView('service');
+        } else if (target.id === 'sidebar-toggle') {
+            e.preventDefault();
+            root.classList.toggle('sidebar-collapsed');
+        } else if (target.id === 'btn-dashboard-backup') {
+            e.preventDefault();
+            exportBackupData();
+        } else if (target.id === 'btn-dashboard-restore') {
+            e.preventDefault();
+            document.getElementById('admin-restore-file-input')?.click();
+        } else if (target.id === 'btn-admin-export') {
+            e.preventDefault();
+            exportAdminExcel();
+        } else if (target.id === 'btn-admin-save-edit') {
+            e.preventDefault();
+            saveAdminEdit(e);
+        } else if (target.id === 'btn-form-submit') {
+            e.preventDefault();
+            submitMaintenanceForm(e);
         }
     });
-    document.getElementById('btn-dashboard-new-tkt').addEventListener('click', () => switchView('new_ticket'));
-    
-    // Sidebar toggle
-    document.getElementById('sidebar-toggle')?.addEventListener('click', () => {
-        document.getElementById('app-container-wrapper').classList.toggle('sidebar-collapsed');
-    });
-    
-    // Sidebar Navigation
-    document.getElementById('nav-home')?.addEventListener('click', () => switchView('service'));
-    document.getElementById('nav-maintenance')?.addEventListener('click', () => switchView('dashboard'));
-    
-    // Theme toggle
-    document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
-    
-    // Service selection clicks
-    document.getElementById('service-ma-card').addEventListener('click', () => switchView('dashboard'));
-    
-    // Dashboard Filters
-    document.getElementById('dashboard-search').addEventListener('input', handleSearch);
-    document.getElementById('dashboard-category-filter').addEventListener('change', handleCategoryFilter);
-    document.getElementById('dashboard-status-filter').addEventListener('change', handleStatusFilter);
-    document.getElementById('dashboard-date-start').addEventListener('change', (e) => {
+}
+
+function setupEventListeners() {
+    setupDelegatedNavigation();
+    publishGlobals();
+
+    bindSafe('login-form-element', 'submit', handleLogin);
+    bindSafe('maintenance-form', 'submit', handleFormSubmit);
+    bindSafe('admin-restore-file-input', 'change', importBackupData);
+
+    bindSafe('dashboard-search', 'input', handleSearch);
+    bindSafe('dashboard-category-filter', 'change', handleCategoryFilter);
+    bindSafe('dashboard-status-filter', 'change', handleStatusFilter);
+    bindSafe('dashboard-date-start', 'change', (e) => {
         state.filters.dateStart = e.target.value;
         renderDashboard();
     });
-    document.getElementById('dashboard-date-end').addEventListener('change', (e) => {
+    bindSafe('dashboard-date-end', 'change', (e) => {
         state.filters.dateEnd = e.target.value;
         renderDashboard();
     });
-    
-    // BU filter buttons
-    document.querySelectorAll('.filter-tag').forEach(tag => {
-        tag.addEventListener('click', () => {
-            const bu = tag.getAttribute('data-bu');
-            handleBUFilter(bu);
+
+    document.querySelectorAll('.filter-tag').forEach(function (tag) {
+        tag.addEventListener('click', function () {
+            handleBUFilter(tag.getAttribute('data-bu'));
         });
     });
-    
-    
-    // Ticket Form Selects
-    document.getElementById('form-bu').addEventListener('change', (e) => {
-        handleBUSelect(e.target.value);
-    });
-    document.getElementById('form-branch').addEventListener('input', handleBranchInput);
-    
-    // Image attachment inputs
+
+    bindSafe('form-bu', 'change', (e) => handleBUSelect(e.target.value));
+    bindSafe('form-branch', 'input', handleBranchInput);
+
     const fileInput = document.getElementById('form-file-input');
     const dropzone = document.getElementById('form-upload-zone');
-    
-    dropzone.addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', handleImageFilesSelect);
-    
-    // Drag & Drop
-    dropzone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        dropzone.classList.add('dragover');
-    });
-    dropzone.addEventListener('dragleave', () => {
-        dropzone.classList.remove('dragover');
-    });
-    dropzone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropzone.classList.remove('dragover');
-        handleImageFilesSelect(e);
-    });
-    
-    // Form Submit
-    document.getElementById('maintenance-form').addEventListener('submit', handleFormSubmit);
-    document.getElementById('btn-form-cancel').addEventListener('click', () => switchView('dashboard'));
-    
-    // Backup & Restore handlers (Admin hub)
-    document.getElementById('btn-dashboard-backup').addEventListener('click', exportBackupData);
-    document.getElementById('btn-dashboard-restore').addEventListener('click', () => {
-        document.getElementById('admin-restore-file-input').click();
-    });
-    document.getElementById('admin-restore-file-input').addEventListener('change', importBackupData);
-    
-    // Admin Hub Listeners
-    document.getElementById('btn-admin-to-dashboard').addEventListener('click', () => switchView('service'));
-    document.getElementById('btn-admin-export').addEventListener('click', exportAdminExcel);
-    document.getElementById('btn-admin-save-edit').addEventListener('click', saveAdminEdit);
-    
-    document.getElementById('admin-search').addEventListener('input', (e) => {
+    if (dropzone && fileInput) {
+        dropzone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', handleImageFilesSelect);
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.classList.add('dragover');
+        });
+        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('dragover');
+            handleImageFilesSelect(e);
+        });
+    }
+
+    bindSafe('admin-search', 'input', (e) => {
         state.adminFilters.search = e.target.value;
         renderAdminDashboard();
     });
-    document.getElementById('admin-bu-filter').addEventListener('change', (e) => {
+    bindSafe('admin-bu-filter', 'change', (e) => {
         state.adminFilters.bu = e.target.value;
         renderAdminDashboard();
     });
-    document.getElementById('admin-category-filter').addEventListener('change', (e) => {
+    bindSafe('admin-category-filter', 'change', (e) => {
         state.adminFilters.category = e.target.value;
         renderAdminDashboard();
     });
-    document.getElementById('admin-status-filter').addEventListener('change', (e) => {
+    bindSafe('admin-status-filter', 'change', (e) => {
         state.adminFilters.status = e.target.value;
         renderAdminDashboard();
     });
-    document.getElementById('admin-date-start').addEventListener('change', (e) => {
+    bindSafe('admin-date-start', 'change', (e) => {
         state.adminFilters.dateStart = e.target.value;
         renderAdminDashboard();
     });
-    document.getElementById('admin-date-end').addEventListener('change', (e) => {
+    bindSafe('admin-date-end', 'change', (e) => {
         state.adminFilters.dateEnd = e.target.value;
         renderAdminDashboard();
     });
-    
-    // Admin Dashboard Chart BU Filter
-    document.getElementById('chart-time-filter').addEventListener('change', renderAdminCharts);
-    document.getElementById('chart-bu-filter').addEventListener('change', (e) => {
+    bindSafe('chart-time-filter', 'change', renderAdminCharts);
+    bindSafe('chart-bu-filter', 'change', (e) => {
         state.chartBUFilter = e.target.value;
         renderAdminCharts();
     });
-    } catch (err) {
-        console.error('Failed to attach some event listeners:', err);
-    }
 }
 
 async function bootstrapApp() {
@@ -1678,18 +1731,22 @@ async function bootstrapApp() {
     }
 
     setupEventListeners();
-
-    try {
-        await loadDatabase();
-    } catch (err) {
-        console.error('Failed to initialise database:', err);
-    }
+    loadSessionAndTheme();
 
     if (state.currentUser) {
         switchView('service');
+    } else if (document.getElementById('service-view')?.classList.contains('active')) {
+        const email = document.getElementById('header-email')?.textContent?.trim();
+        if (email && email !== 'user@central.co.th') {
+            state.currentUser = { email: email, name: email.split('@')[0], role: 'Reporter' };
+        }
     } else {
         switchView('login');
     }
+
+    loadTicketsAsync().catch(function (err) {
+        console.error('Background ticket load failed:', err);
+    });
 }
 
 if (document.readyState === 'loading') {
