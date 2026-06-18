@@ -225,7 +225,11 @@ async function loadDatabase() {
     const savedTheme = AppStorage.getItem('cbs_theme') || 'light';
     setTheme(savedTheme);
 
-    // 4. Load store master data from stores.js
+    // 4. Load store master data from stores.js (may load after bootstrap)
+    loadStoresFromGlobal();
+}
+
+function loadStoresFromGlobal() {
     if (typeof STORES_DATABASE !== 'undefined') {
         state.stores = STORES_DATABASE;
         console.log(`Loaded ${state.stores.length} stores from stores.js`);
@@ -233,6 +237,8 @@ async function loadDatabase() {
         console.warn('STORES_DATABASE is undefined. Autocomplete will be disabled.');
     }
 }
+
+window.__loadStores = loadStoresFromGlobal;
 
 async function saveTickets(options) {
     const mode = options && options.mode ? options.mode : 'full';
@@ -1520,6 +1526,7 @@ async function handleAdminLogin() {
 }
 // --- APP INITIALIZER ---
 function setupEventListeners() {
+    try {
     const loginForm = document.getElementById('login-form-element');
     const loginButton = document.getElementById('login-submit-btn');
 
@@ -1658,9 +1665,18 @@ function setupEventListeners() {
         state.chartBUFilter = e.target.value;
         renderAdminCharts();
     });
+    } catch (err) {
+        console.error('Failed to attach some event listeners:', err);
+    }
 }
 
 async function bootstrapApp() {
+    if (window.__cbsPendingUser) {
+        state.currentUser = window.__cbsPendingUser;
+        AppStorage.setItem('cbs_service_hub_user', JSON.stringify(state.currentUser));
+        delete window.__cbsPendingUser;
+    }
+
     setupEventListeners();
 
     try {
