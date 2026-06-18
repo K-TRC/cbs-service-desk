@@ -1,5 +1,54 @@
 // CBS Service HUB - Core Application Logic
 
+// Safe storage for GAS iframe / GitHub Pages embed where localStorage may be blocked.
+const AppStorage = (function () {
+    const memory = {};
+    let canUseLocalStorage = false;
+
+    try {
+        const testKey = '__cbs_storage_test__';
+        localStorage.setItem(testKey, '1');
+        localStorage.removeItem(testKey);
+        canUseLocalStorage = true;
+    } catch (err) {
+        canUseLocalStorage = false;
+    }
+
+    return {
+        getItem: function (key) {
+            if (canUseLocalStorage) {
+                try {
+                    return localStorage.getItem(key);
+                } catch (err) {
+                    canUseLocalStorage = false;
+                }
+            }
+            return Object.prototype.hasOwnProperty.call(memory, key) ? memory[key] : null;
+        },
+        setItem: function (key, value) {
+            if (canUseLocalStorage) {
+                try {
+                    localStorage.setItem(key, value);
+                    return;
+                } catch (err) {
+                    canUseLocalStorage = false;
+                }
+            }
+            memory[key] = value;
+        },
+        removeItem: function (key) {
+            if (canUseLocalStorage) {
+                try {
+                    localStorage.removeItem(key);
+                } catch (err) {
+                    canUseLocalStorage = false;
+                }
+            }
+            delete memory[key];
+        }
+    };
+})();
+
 // --- APPLICATION STATE ---
 const state = {
     currentUser: null,
@@ -149,7 +198,7 @@ function updateHeaderUI() {
 // --- DATABASE OPERATIONS ---
 async function loadDatabase() {
     // 1. Load User session (client-side only)
-    const savedUser = localStorage.getItem('cbs_service_hub_user');
+    const savedUser = AppStorage.getItem('cbs_service_hub_user');
     if (savedUser) {
         state.currentUser = JSON.parse(savedUser);
     }
@@ -159,12 +208,12 @@ async function loadDatabase() {
         if (typeof GasApi !== 'undefined' && GasApi.isGasRuntime()) {
             state.tickets = await GasApi.getTickets();
         } else {
-            const savedTickets = localStorage.getItem('cbs_service_hub_tickets');
+            const savedTickets = AppStorage.getItem('cbs_service_hub_tickets');
             if (savedTickets) {
                 state.tickets = JSON.parse(savedTickets);
             } else {
                 state.tickets = [...MOCK_TICKETS];
-                localStorage.setItem('cbs_service_hub_tickets', JSON.stringify(state.tickets));
+                AppStorage.setItem('cbs_service_hub_tickets', JSON.stringify(state.tickets));
             }
         }
     } catch (err) {
@@ -173,7 +222,7 @@ async function loadDatabase() {
     }
 
     // 3. Load Theme
-    const savedTheme = localStorage.getItem('cbs_theme') || 'light';
+    const savedTheme = AppStorage.getItem('cbs_theme') || 'light';
     setTheme(savedTheme);
 
     // 4. Load store master data from stores.js
@@ -204,14 +253,14 @@ async function saveTickets(options) {
         }
         return;
     }
-    localStorage.setItem('cbs_service_hub_tickets', JSON.stringify(state.tickets));
+    AppStorage.setItem('cbs_service_hub_tickets', JSON.stringify(state.tickets));
 }
 
 // --- THEME MANAGEMENT ---
 function setTheme(theme) {
     state.activeTheme = theme;
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('cbs_theme', theme);
+    AppStorage.setItem('cbs_theme', theme);
     
     const themeBtn = document.getElementById('theme-toggle');
     if (themeBtn) {
@@ -231,27 +280,27 @@ function toggleTheme() {
 
 // --- LOGIN PORTAL ---
 function handleLogin(e) {
-    e.preventDefault();
+    if (e) e.preventDefault();
+
     const emailInput = document.getElementById('login-email');
+    if (!emailInput) return;
+
     const email = emailInput.value.trim();
-    
     if (!email) return;
-    
-    // Save current user session
+
     state.currentUser = {
         email: email,
         name: email.split('@')[0],
         role: "Reporter"
     };
-    localStorage.setItem('cbs_service_hub_user', JSON.stringify(state.currentUser));
-    
-    // Switch to service selection screen
+    AppStorage.setItem('cbs_service_hub_user', JSON.stringify(state.currentUser));
+
     switchView('service');
 }
 
 function handleLogout() {
     state.currentUser = null;
-    localStorage.removeItem('cbs_service_hub_user');
+    AppStorage.removeItem('cbs_service_hub_user');
     switchView('login');
     document.getElementById('login-email').value = '';
 }
@@ -1471,9 +1520,18 @@ async function handleAdminLogin() {
 }
 // --- APP INITIALIZER ---
 function setupEventListeners() {
-    // Login
-    document.getElementById('login-form-element').addEventListener('submit', handleLogin);
-    document.getElementById('header-logout').addEventListener('click', handleLogout);
+    const loginForm = document.getElementById('login-form-element');
+    const loginButton = document.getElementById('login-submit-btn');
+
+    if (loginForm) {
+        loginForm.addEventListener('submit', handleLogin);
+    }
+    if (loginButton) {
+        loginButton.addEventListener('click', handleLogin);
+    }
+
+    const headerLogout = document.getElementById('header-logout');
+    if (headerLogout) headerLogout.addEventListener('click', handleLogout);
     
     // Route navigation
     document.getElementById('header-back').addEventListener('click', () => {
@@ -1602,8 +1660,7 @@ function setupEventListeners() {
     });
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
-    // Attach listeners first — GAS IFRAME can submit forms before async init finishes.
+async function bootstrapApp() {
     setupEventListeners();
 
     try {
@@ -1611,12 +1668,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (err) {
         console.error('Failed to initialise database:', err);
     }
-    
-    // Kickoff first view depending on session
+
     if (state.currentUser) {
         switchView('service');
     } else {
         switchView('login');
     }
-});
+}
 
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootstrapApp);
+} else {
+    bootstrapApp();
+}
