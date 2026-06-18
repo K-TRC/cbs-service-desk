@@ -185,10 +185,19 @@ async function loadDatabase() {
     }
 }
 
-async function saveTickets() {
+async function saveTickets(options) {
+    const mode = options && options.mode ? options.mode : 'full';
+    const ticket = options && options.ticket ? options.ticket : null;
+
     if (typeof GasApi !== 'undefined' && GasApi.isGasRuntime()) {
         try {
-            await GasApi.saveTickets(state.tickets);
+            if (mode === 'append' && ticket) {
+                await GasApi.appendTicket(ticket);
+            } else if (mode === 'update' && ticket) {
+                await GasApi.updateTicket(ticket);
+            } else {
+                await GasApi.saveTickets(state.tickets);
+            }
         } catch (err) {
             console.error('Failed to save tickets to server:', err);
             alert('Cannot save data to server (บันทึกข้อมูลไม่สำเร็จ): ' + err.message);
@@ -456,7 +465,7 @@ function showTicketDetail(ticketId) {
     statusSelector.value = ticket.status;
     statusSelector.onchange = async (e) => {
         ticket.status = e.target.value;
-        await saveTickets();
+        await saveTickets({ mode: 'update', ticket: ticket });
         renderDashboard();
         // Update badge dynamically inside modal
         const newStatus = e.target.value;
@@ -722,7 +731,7 @@ async function handleFormSubmit(e) {
     
     // 4. Save to Database
     state.tickets.push(newTicket);
-    await saveTickets();
+    await saveTickets({ mode: 'append', ticket: newTicket });
     
     // 5. Trigger Success Overlay Animation
     const successOverlay = document.getElementById('success-overlay');
@@ -1009,7 +1018,7 @@ async function saveAdminEdit(e) {
     ticket.status = status;
     ticket.description = description;
     
-    await saveTickets();
+    await saveTickets({ mode: 'update', ticket: ticket });
     closeAdminEditModal();
     
     // Refresh both view dashboards

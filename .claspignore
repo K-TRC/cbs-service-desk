@@ -3,6 +3,7 @@ src/**
 CBS Service Desk/**
 node_modules/**
 .git/**
+scripts/**
 *.md
 package.json
 package-lock.json
@@ -13,3 +14,4 @@ xlsx.full.min.js
 app.js
 gas-api.js
 stores.js
+app.css

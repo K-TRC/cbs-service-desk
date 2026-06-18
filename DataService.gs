@@ -7,6 +7,7 @@
 var DataService = (function () {
   var SPREADSHEET_NAME = 'CBS Service HUB - Tickets';
   var SHEET_NAME = 'Tickets';
+  var MAX_CELL_CHARS = 45000;
 
   var HEADERS = [
     'id',
@@ -54,21 +55,44 @@ var DataService = (function () {
     }
   }
 
-  function createFallbackSpreadsheet_() {
-    var spreadsheet = SpreadsheetApp.create(SPREADSHEET_NAME);
-    PropertiesService.getScriptProperties().setProperty('SPREADSHEET_ID', spreadsheet.getId());
-    var sheet = spreadsheet.getSheets()[0];
-    sheet.setName(SHEET_NAME);
-    ensureHeaderRow_(sheet);
-    return spreadsheet;
+  function getOrCreateSpreadsheet_() {
+    return openSpreadsheet_();
   }
 
-  function getOrCreateSpreadsheet_() {
-    try {
-      return openSpreadsheet_();
-    } catch (e) {
-      return createFallbackSpreadsheet_();
+  function findTicketRow_(sheet, ticketId) {
+    var lastRow = sheet.getLastRow();
+    if (lastRow < 2) {
+      return -1;
     }
+    var ids = sheet.getRange(2, 1, lastRow, 1).getValues();
+    for (var i = 0; i < ids.length; i++) {
+      if (String(ids[i][0] || '').trim() === String(ticketId || '').trim()) {
+        return i + 2;
+      }
+    }
+    return -1;
+  }
+
+  function appendTicket_(ticket) {
+    if (!ticket || !ticket.id) {
+      throw new Error('Invalid ticket payload');
+    }
+    var sheet = getTicketsSheet_();
+    sheet.appendRow(ticketToRow_(ticket));
+    return ticket.id;
+  }
+
+  function updateTicket_(ticket) {
+    if (!ticket || !ticket.id) {
+      throw new Error('Invalid ticket payload');
+    }
+    var sheet = getTicketsSheet_();
+    var rowNum = findTicketRow_(sheet, ticket.id);
+    if (rowNum < 0) {
+      return appendTicket_(ticket);
+    }
+    sheet.getRange(rowNum, 1, rowNum, HEADERS.length).setValues([ticketToRow_(ticket)]);
+    return ticket.id;
   }
 
   function getTicketsSheet_() {
@@ -92,7 +116,11 @@ var DataService = (function () {
   function ticketToRow_(ticket) {
     return HEADERS.map(function (key) {
       if (key === 'images') {
-        return JSON.stringify(ticket.images || []);
+        var imagesJson = JSON.stringify(ticket.images || []);
+        if (imagesJson.length > MAX_CELL_CHARS) {
+          throw new Error('Ticket images are too large for Google Sheets. Please attach fewer or smaller photos.');
+        }
+        return imagesJson;
       }
       return ticket[key] != null ? ticket[key] : '';
     });
@@ -175,6 +203,26 @@ var DataService = (function () {
         return {
           success: true,
           count: writeTickets_(tickets),
+          spreadsheetId: getSpreadsheetId_()
+        };
+      });
+    },
+
+    appendTicket: function (ticket) {
+      return withLock_(function () {
+        return {
+          success: true,
+          id: appendTicket_(ticket),
+          spreadsheetId: getSpreadsheetId_()
+        };
+      });
+    },
+
+    updateTicket: function (ticket) {
+      return withLock_(function () {
+        return {
+          success: true,
+          id: updateTicket_(ticket),
           spreadsheetId: getSpreadsheetId_()
         };
       });

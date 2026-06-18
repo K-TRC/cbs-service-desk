@@ -26,6 +26,14 @@ function apiSaveTickets(tickets) {
   return DataService.saveTickets(tickets);
 }
 
+function apiAppendTicket(ticket) {
+  return DataService.appendTicket(ticket);
+}
+
+function apiUpdateTicket(ticket) {
+  return DataService.updateTicket(ticket);
+}
+
 function apiValidateAdmin(username, password) {
   return Config.validateAdmin(username, password);
 }

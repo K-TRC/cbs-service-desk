@@ -34,6 +34,14 @@ const GasApi = (function () {
       return runGas_('apiSaveTickets', tickets);
     },
 
+    appendTicket: function (ticket) {
+      return runGas_('apiAppendTicket', ticket);
+    },
+
+    updateTicket: function (ticket) {
+      return runGas_('apiUpdateTicket', ticket);
+    },
+
     validateAdmin: function (username, password) {
       return runGas_('apiValidateAdmin', username, password);
     },

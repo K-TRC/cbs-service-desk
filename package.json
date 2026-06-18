@@ -6,10 +6,10 @@
   "scripts": {
     "login": "clasp login",
     "create": "clasp create --type webapp --title \"CBS Service HUB\" --rootDir .",
-    "push": "clasp push",
+    "push": "node scripts/sync-client.js && clasp push",
     "pull": "clasp pull",
     "open": "clasp open",
-    "deploy": "clasp deploy --description \"Production\""
+    "deploy": "node scripts/sync-client.js && clasp push && clasp deploy --description \"Production\""
   },
   "devDependencies": {
     "@google/clasp": "^2.4.2",
