@@ -8,3 +8,8 @@ package.json
 package-lock.json
 .gitignore
 .clasprc.json
+chart.min.js
+xlsx.full.min.js
+app.js
+gas-api.js
+stores.js

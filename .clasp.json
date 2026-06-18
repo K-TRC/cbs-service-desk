@@ -1,7 +1,6 @@
 {
-  "scriptId": "",
+  "scriptId": "19CjISjSa1gQzTb2IwTzg8Jm9Y6ofe_Jke3dt2a3b27PkRGjRdS9ZqETN",
   "rootDir": ".",
-  "fileExtension": "gs",
   "filePushOrder": [
     "appsscript.json",
     "Config.gs",

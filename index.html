@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CBS Service HUB - Maintenance Service Portal</title>
     
-    <!-- Excel Export Engine (SheetJS Local minified copy) -->
-    <script src="xlsx.full.min.js"></script>
+    <!-- Excel Export Engine (SheetJS CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
     <!-- Chart.js Library for Admin Dashboard Graphs -->
-    <script src="chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     
     <!-- Main Style Tokens and Glassmorphism Layouts (inlined for Apps Script) -->
     <style><?!= include('app.css'); ?></style>
@@ -881,10 +881,10 @@
 
     </div>
 
-    <!-- Deferred databases and application scripts -->
-    <script src="stores.js"></script>
-    <script src="gas-api.js"></script>
-    <script src="app.js"></script>
+    <!-- Client scripts (included as HTML for Apps Script) -->
+    <script><?!= include('stores'); ?></script>
+    <script><?!= include('gas-api'); ?></script>
+    <script><?!= include('app'); ?></script>
 </body>
 </html>
 

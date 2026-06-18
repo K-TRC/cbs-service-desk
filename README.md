@@ -2,6 +2,15 @@
 
 Maintenance Service Portal สำหรับ CBS Project แปลงเป็น **Google Apps Script Web App** พร้อม deploy ผ่าน [clasp](https://github.com/google/clasp) และเก็บ source บน GitHub
 
+## ลิงก์สำคัญ
+
+| | URL |
+|---|-----|
+| **GitHub (Source Code)** | https://github.com/K-TRC/cbs-service-desk |
+| **Web App (ใช้งานจริง)** | https://script.google.com/macros/s/AKfycbzpbUzkYK__F0jASzMNgcpOBQ23yrnDpMmSXUi6d5ZrVzhuG_y75X6lhX_Ia7phLPxs/exec |
+| **Apps Script Editor** | https://script.google.com/d/19CjISjSa1gQzTb2IwTzg8Jm9Y6ofe_Jke3dt2a3b27PkRGjRdS9ZqETN/edit |
+| **Google Sheet (ฐานข้อมูล)** | https://docs.google.com/spreadsheets/d/1iVZaCKwzfpq0w2ySidFXMS3EGqqsUW0bV6N4nU1V-vI/edit |
+
 ## โครงสร้างโปรเจค
 
 | ไฟล์ | หน้าที่ |
