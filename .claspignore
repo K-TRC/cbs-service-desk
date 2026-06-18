@@ -1,0 +1,10 @@
+# clasp — ignore folders that are not pushed to Apps Script
+src/**
+CBS Service Desk/**
+node_modules/**
+.git/**
+*.md
+package.json
+package-lock.json
+.gitignore
+.clasprc.json

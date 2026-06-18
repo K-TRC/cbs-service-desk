@@ -1,0 +1,11 @@
+{
+  "scriptId": "",
+  "rootDir": ".",
+  "fileExtension": "gs",
+  "filePushOrder": [
+    "appsscript.json",
+    "Config.gs",
+    "DataService.gs",
+    "Code.gs"
+  ]
+}

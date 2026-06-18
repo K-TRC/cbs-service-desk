@@ -1,0 +1,14 @@
+# Dependencies
+node_modules/
+
+# clasp local auth (do not commit OAuth token)
+.clasprc.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log
+
+# Original static copy (clasp root is canonical)
+src/
+CBS Service Desk/

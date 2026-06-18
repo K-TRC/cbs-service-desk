@@ -1,0 +1,18 @@
+{
+  "name": "cbs-service-desk",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CBS Service HUB — Google Apps Script Web App (clasp)",
+  "scripts": {
+    "login": "clasp login",
+    "create": "clasp create --type webapp --title \"CBS Service HUB\" --rootDir .",
+    "push": "clasp push",
+    "pull": "clasp pull",
+    "open": "clasp open",
+    "deploy": "clasp deploy --description \"Production\""
+  },
+  "devDependencies": {
+    "@google/clasp": "^2.4.2",
+    "@types/google-apps-script": "^1.0.83"
+  }
+}
